@@ -1,0 +1,28 @@
+ Table.AddColumn(#"Changed Type", "Find Duration", each [
+
+time_start = Time.From([SubmittedAt]),
+time_end = Time.From([StartedAt]),
+work_start_time = #time(8,0,0),
+work_end_time = #time(17,0,0),
+
+getting_Dates_Range = List.Dates(Date.From([SubmittedAt]), 
+Duration.Days(Date.From([StartedAt])-Date.From([SubmittedAt])) + 1 , 
+#duration(1,0,0,0)),
+
+selecting_work_days = List.Select( getting_Dates_Range , each List.Contains({1..5} , Date.DayOfWeek(_))),
+
+
+
+fixing_submitted_time = if time_start >= work_start_time and time_start <= work_end_time then time_start else if time_start < work_start_time then work_start_time else if time_start > work_end_time then work_end_time else 0,
+
+fixing_Started_time = if time_end >= work_start_time and time_end <= work_end_time then time_end else if time_end < work_start_time then work_start_time else if time_end > work_end_time then work_end_time else 0,
+ 
+calculate_first_day_Hours =Duration.TotalHours(work_end_time - fixing_submitted_time),
+calculate_last_day_hours = Duration.TotalHours(fixing_Started_time - work_start_time),
+
+counting_hours_list = List.Count(selecting_work_days) * 8,
+
+
+final_calculation =  if List.Count(selecting_work_days) = 1 then calculate_last_day_hours else if List.Count(selecting_work_days) = 2 then calculate_last_day_hours + calculate_first_day_Hours else  (calculate_first_day_Hours + calculate_last_day_hours) - counting_hours_list, 
+final_result = Number.Abs(final_calculation)
+][final_result])
