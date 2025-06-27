@@ -1,0 +1,31 @@
+// Purpose: Convert multiple values in a single cell into separate rows without duplicating data incorrectly.
+// This approach is useful when two or more columns contain delimited values (e.g., space-separated or line-separated),
+// and you want to unpivot or "explode" them into structured rows, but without creating a Cartesian product.
+
+// Initial structure (Example):
+// Row | numberName   | letterName
+// ----|--------------|--------------------------
+// 1   | 1 2 3 4      | A B C D
+
+// Goal:
+// Row | numberName | letterName
+// ----|----------  |----------
+// 1   | 1          | A
+// 2   | 2          | B
+// 3   | 3          | C
+// 4   | 4          | D
+
+// Code:
+
+// Add a new column where the delimited text is split and converted into a structured table.
+#"Add new column" = Table.AddColumn(Source, "cleaning", each 
+    Table.FromColumns({
+        Splitter.SplitTextByWhitespace()([numberName]),  // Converts the numberName text to a list
+        Splitter.SplitTextByWhitespace()([LetterName])   // Converts the letterName text to a list
+    }, {"numberName", "letterName"})  // Names of new columns
+),
+
+//  Remove original dirty columns if needed
+#"Removed Columns" = Table.RemoveColumns(#"Expanded cleaning", {"NumberName", "letterName"})
+
+//Expand the columns with the data cleaned
