@@ -1,28 +1,55 @@
- Table.AddColumn(#"Changed Type", "Find Duration", each [
-
-time_start = Time.From([SubmittedAt]),
-time_end = Time.From([StartedAt]),
-work_start_time = #time(8,0,0),
-work_end_time = #time(17,0,0),
-
-getting_Dates_Range = List.Dates(Date.From([SubmittedAt]), 
-Duration.Days(Date.From([StartedAt])-Date.From([SubmittedAt])) + 1 , 
-#duration(1,0,0,0)),
-
-selecting_work_days = List.Select( getting_Dates_Range , each List.Contains({1..5} , Date.DayOfWeek(_))),
-
-
-
-fixing_submitted_time = if time_start >= work_start_time and time_start <= work_end_time then time_start else if time_start < work_start_time then work_start_time else if time_start > work_end_time then work_end_time else 0,
-
-fixing_Started_time = if time_end >= work_start_time and time_end <= work_end_time then time_end else if time_end < work_start_time then work_start_time else if time_end > work_end_time then work_end_time else 0,
- 
-calculate_first_day_Hours =Duration.TotalHours(work_end_time - fixing_submitted_time),
-calculate_last_day_hours = Duration.TotalHours(fixing_Started_time - work_start_time),
-
-counting_hours_list = List.Count(selecting_work_days) * 8,
-
-
-final_calculation =  if List.Count(selecting_work_days) = 1 then calculate_last_day_hours else if List.Count(selecting_work_days) = 2 then calculate_last_day_hours + calculate_first_day_Hours else  (calculate_first_day_Hours + calculate_last_day_hours) - counting_hours_list, 
-final_result = Number.Abs(final_calculation)
-][final_result])
+= (row_record as record, columnName1 as text, columnName2 as text) =>
+        let
+            start_date = Record.Field(row_record, columnName1) /*Registration*/,
+            time_start_date = Time.From(start_date),
+            end_date = Record.Field(row_record, columnName2),
+            time_end_date = Time.From(end_date) /*Date Stamp - Local Quality*/,
+            shift_start = #time(7, 0, 0),
+            shift_end = #time(16, 0, 0),
+            days_between =
+                if start_date < end_date then
+                    List.Dates(
+                        Date.From(start_date),
+                        Duration.TotalDays(Date.From(end_date) - Date.From(start_date)) + 1,
+                        #duration(1, 0, 0, 0)
+                    )
+                else
+                    List.Dates(
+                        Date.From(end_date),
+                        Duration.TotalDays(Date.From(start_date) - Date.From(end_date)) + 1,
+                        #duration(1, 0, 0, 0)
+                    ),
+            selectworking_days = List.Select(days_between, each List.Contains({1..5}, Date.DayOfWeek(_))),
+            count_days = List.Count(selectworking_days),
+            fixing_time_start =
+                if time_start_date < shift_start then
+                    shift_start
+                else if time_start_date >= shift_end then
+                    shift_end
+                else
+                    time_start_date,
+            fixing_time_end =
+                if time_end_date < shift_start then
+                    shift_start
+                else if time_end_date >= shift_end then
+                    shift_end
+                else
+                    time_end_date,
+            hours_first_day = Duration.TotalHours(shift_end - fixing_time_start),
+            hours_last_day = Duration.TotalHours(fixing_time_end - shift_start),
+            days_in_between = List.Count(
+                List.Select(
+                    selectworking_days, each _ <> List.Min(selectworking_days) and _ <> List.Max(selectworking_days)
+                )
+            ) * 9,
+            condition1 =
+                if start_date = null or end_date = null then
+                    null
+                else if count_days = 1 then
+                    Number.Abs(Duration.TotalHours(start_date - end_date))
+                else if count_days = 2 then
+                    hours_first_day + hours_last_day
+                else
+                    hours_first_day + hours_last_day + days_in_between
+        in
+            condition1
