@@ -1,9 +1,9 @@
 = (row_record as record, columnName1 as text, columnName2 as text) =>
         let
-            start_date = Record.Field(row_record, columnName1) /*Registration*/,
+            start_date = Record.Field(row_record, columnName1)
             time_start_date = Time.From(start_date),
             end_date = Record.Field(row_record, columnName2),
-            time_end_date = Time.From(end_date) /*Date Stamp - Local Quality*/,
+            time_end_date = Time.From(end_date) 
             shift_start = #time(7, 0, 0),
             shift_end = #time(16, 0, 0),
             days_between =
