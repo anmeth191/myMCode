@@ -249,7 +249,7 @@ table Date_Table
 				let
 				    start_Date_calendar = #date(2007, 1, 1),
 				    end_Date_calendar = #date(2030 , 12 , 31 ), 
-				    Generating_Dates = List.Dates(start_Date_calendar  , Duration.TotalDays(end_Date_calendar - start_Date_calendar) , #duration(1,0,0,0) ),
+				    Generating_Dates = List.Dates(start_Date_calendar  , Duration.TotalDays(end_Date_calendar - start_Date_calendar) + 1 , #duration(1,0,0,0) ),
 				    transforming_to_Table = Table.FromList(Generating_Dates , Splitter.SplitByNothing() , {"Date"}),
 				    #"Changed Type" = Table.TransformColumnTypes(transforming_to_Table,{{"Date", type date}}),
 				    #"Added Year Month Number" = Table.AddColumn( #"Changed Type" , "Year Month Number" ,  each Date.Year([Date]) * 12  + Date.Month([Date]) - 1 , Int64.Type),
