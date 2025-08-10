@@ -1,0 +1,23 @@
+
+This is a note from something I learned today that took me a while to understand:
+
+the function Table.FromList() by default if comas are present in the the elements of the list for example {"Hello, world" , "This is a , test"} it will apply splitterbydelimiter(",") by default, 
+which will return a table table of 2 columns with 2 rows , if the comas are not present then it will return a single column with 4 rows, this only happens with comas.
+
+see code for examples:
+
+let
+    myList = { "Apple, Banana", "Carrot, Orange" },
+
+    // Default behavior (apply splitbydelimiter function because the text in the list contains comas )
+    defaultSplit = Table.FromList(myList),
+
+    // Explicit no-split when comas present 
+    noSplit = Table.FromList(myList, Splitter.SplitByNothing()) ,
+
+    // Custom delimiter example (splitting on "/")
+    customList = { "Apple/Banana", "Carrot/Orange" },
+    splitBySlash = Table.FromList(customList, Splitter.SplitTextByDelimiter("/"))
+in
+    splitBySlash
+

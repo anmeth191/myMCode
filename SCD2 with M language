@@ -1,0 +1,155 @@
+//Code to create a SCD2 for a product table when the price changes
+
+let
+    Source = Source goes here
+    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers", {{"OrderDate", type date}}),
+    #"Sorted Rows" = Table.Sort(#"Changed Type", {{"ProductID", Order.Ascending}, {"OrderDate", Order.Ascending}}),
+    #"Removed Other Columns" = Table.SelectColumns(
+        #"Sorted Rows", {"OrderDate", "ProductID", "ProductName", "Brand", "Category", "UnitPrice"}
+    ),
+    #"Removed Duplicates" = Table.Distinct(#"Removed Other Columns"),
+    #"Grouped Rows" = Table.Group(
+        #"Removed Duplicates",
+        {"ProductID", "UnitPrice", "ProductName", "Brand", "Category"},
+        {
+            {"Effective Date", each List.Min([OrderDate]), type nullable date},
+            {
+                "Data",
+                each _,
+                type table [
+                    OrderDate = nullable date,
+                    ProductID = nullable text,
+                    ProductName = nullable text,
+                    Brand = nullable text,
+                    Category = nullable text,
+                    UnitPrice = nullable text
+                ]
+            }
+        }
+    ),
+    #"Removed Columns" = Table.RemoveColumns(#"Grouped Rows", {"Data"}),
+    #"Grouped Rows1" = Table.Group(
+        #"Removed Columns",
+        {"ProductID", "ProductName"},
+        {
+            {
+                "Data",
+                each _,
+                type table [
+                    ProductID = nullable text,
+                    UnitPrice = nullable text,
+                    ProductName = nullable text,
+                    Brand = nullable text,
+                    Category = nullable text,
+                    Effective Date = nullable date
+                ]
+            }
+        }
+    ),
+    #"Added Custom" = Table.AddColumn(
+        #"Grouped Rows1",
+        "ShapingData",
+        each
+            let
+                sortColumn = Table.Sort([Data], {{"Effective Date", Order.Ascending}}),
+                adding_Index = Table.AddIndexColumn(sortColumn, "Index", 1, 1),
+                adding_EndDate = Table.AddColumn(
+                    adding_Index,
+                    "EndDate",
+                    (element) =>
+                        let
+                            add_date =
+                                try
+                                    List.Range(adding_Index[Effective Date], element[Index], 1){0}
+                                otherwise
+                                    #date(9999, 12, 31),
+                            substract_day = try Date.AddDays(add_date, -1) otherwise null
+                        in
+                            substract_day
+                ),
+                add_is_Current = Table.AddColumn(
+                    adding_EndDate, "IsCurrent", each if _[EndDate] = #date(9999, 12, 30) then true else false
+                )
+            in
+                add_is_Current
+    ),
+    #"Removed Other Columns1" = Table.SelectColumns(#"Added Custom", {"ShapingData"}),
+    #"Expanded ShapingData" = Table.ExpandTableColumn(
+        #"Removed Other Columns1",
+        "ShapingData",
+        {
+            "ProductID",
+            "UnitPrice",
+            "ProductName",
+            "Brand",
+            "Category",
+            "Effective Date",
+            "Index",
+            "EndDate",
+            "IsCurrent"
+        },
+        {
+            "ProductID",
+            "UnitPrice",
+            "ProductName",
+            "Brand",
+            "Category",
+            "Effective Date",
+            "Index",
+            "EndDate",
+            "IsCurrent"
+        }
+    ),
+    #"Removed Columns1" = Table.RemoveColumns(#"Expanded ShapingData", {"Index"}),
+    #"Changed Type1" = Table.TransformColumnTypes(
+        #"Removed Columns1",
+        {
+            {"Effective Date", type date},
+            {"EndDate", type date},
+            {"UnitPrice", Int64.Type},
+            {"ProductID", Int64.Type},
+            {"IsCurrent", type logical},
+            {"ProductName", type text},
+            {"Brand", type text},
+            {"Category", type text}
+        }
+    ),
+    #"Sorted Rows1" = Table.Sort(
+        #"Changed Type1", {{"ProductID", Order.Ascending}, {"Effective Date", Order.Ascending}}
+    ),
+    #"Added Index" = Table.AddIndexColumn(#"Sorted Rows1", "Product SK", 1, 1, Int64.Type)
+in
+    #"Added Index"
+
+
+
+/// Then in the fact table do this to get the right key:
+
+ #"Merged Queries" = Table.NestedJoin(
+        #"Sorted Rows", {"ProductID"}, DIM_Product_SCD2, {"ProductID"}, "DIM_Product_SCD2", JoinKind.LeftOuter
+    ),
+    #"Added Custom" = Table.AddColumn(
+        #"Merged Queries",
+        "GettingData",
+        each
+            Table.SelectRows(
+                [DIM_Product_SCD2],
+                (element) => [OrderDate] >= element[Effective Date] and [OrderDate] <= element[EndDate]
+            )
+    ),
+    #"Removed Columns" = Table.RemoveColumns(#"Added Custom", {"DIM_Product_SCD2"}),
+    #"Expanded GettingData" = Table.ExpandTableColumn(
+        #"Removed Columns", "GettingData", {"Product SK"}, {"Product SK"}
+    ),
+    #"Removed Columns1" = Table.RemoveColumns(
+        #"Expanded GettingData", {"ProductID", "ProductName", "Brand", "Category", "UnitPrice"}
+    ),
+    #"Changed Type1" = Table.TransformColumnTypes(
+        #"Removed Columns1", {{"Quantity", Int64.Type}, {"Amount", Int64.Type}, {"Product SK", Int64.Type}}
+    )
+in
+    #"Changed Type1"
+
+
+

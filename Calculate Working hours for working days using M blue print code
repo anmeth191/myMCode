@@ -1,0 +1,55 @@
+= (row_record as record, columnName1 as text, columnName2 as text) =>
+        let
+            start_date = Record.Field(row_record, columnName1)
+            time_start_date = Time.From(start_date),
+            end_date = Record.Field(row_record, columnName2),
+            time_end_date = Time.From(end_date) 
+            shift_start = #time(7, 0, 0),
+            shift_end = #time(16, 0, 0),
+            days_between =
+                if start_date < end_date then
+                    List.Dates(
+                        Date.From(start_date),
+                        Duration.TotalDays(Date.From(end_date) - Date.From(start_date)) + 1,
+                        #duration(1, 0, 0, 0)
+                    )
+                else
+                    List.Dates(
+                        Date.From(end_date),
+                        Duration.TotalDays(Date.From(start_date) - Date.From(end_date)) + 1,
+                        #duration(1, 0, 0, 0)
+                    ),
+            selectworking_days = List.Select(days_between, each List.Contains({1..5}, Date.DayOfWeek(_))),
+            count_days = List.Count(selectworking_days),
+            fixing_time_start =
+                if time_start_date < shift_start then
+                    shift_start
+                else if time_start_date >= shift_end then
+                    shift_end
+                else
+                    time_start_date,
+            fixing_time_end =
+                if time_end_date < shift_start then
+                    shift_start
+                else if time_end_date >= shift_end then
+                    shift_end
+                else
+                    time_end_date,
+            hours_first_day = Duration.TotalHours(shift_end - fixing_time_start),
+            hours_last_day = Duration.TotalHours(fixing_time_end - shift_start),
+            days_in_between = List.Count(
+                List.Select(
+                    selectworking_days, each _ <> List.Min(selectworking_days) and _ <> List.Max(selectworking_days)
+                )
+            ) * 9,
+            condition1 =
+                if start_date = null or end_date = null then
+                    null
+                else if count_days = 1 then
+                    Number.Abs(Duration.TotalHours(start_date - end_date))
+                else if count_days = 2 then
+                    hours_first_day + hours_last_day
+                else
+                    hours_first_day + hours_last_day + days_in_between
+        in
+            condition1

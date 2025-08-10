@@ -1,0 +1,65 @@
+Power Query: Multi-Value Text Replacement on Column
+This repository contains a Power Query (M Language) snippet that performs multiple text replacements on a specific column of a table using a defined list of find-and-replace rules.
+
+Purpose
+To automate bulk text replacement in a column (e.g., ""Replacer Text column"") using a dynamic list of search and replacement pairs.
+
+Features
+Replaces multiple values in a single pass using List.Accumulate
+Dynamic and scalable: just update the list_replace_values list
+Uses native Power Query function Table.ReplaceValue
+Clean functional pattern — no custom functions needed
+
+Code
+let 
+    list_replace_values = {
+        {"Text1", "I have changed Text1"}, 
+        {" ", "#"}
+    },
+    replacing_function = List.Accumulate( 
+        list_replace_values, 
+        #"Added Index", 
+        (state, current) => 
+            Table.ReplaceValue(
+                state,
+                current{0}, 
+                current{1},
+                Replacer.ReplaceText, 
+                {""Replacer Text column""}
+            )
+    )
+in
+    replacing_function
+
+How It Works
+Define Replacement Rules
+A list of {find, replace} pairs (e.g., "Text1" → "I have changed Text1").
+
+Apply Replacements
+List.Accumulate loops through each rule and applies Table.ReplaceValue to update the "Replacer Text column" column.
+
+Requirements
+Power BI Desktop or Excel Power Query
+Input step must be named #"Added Index" (or modify the step name accordingly)
+
+Column "Replacer Text column" must exist in the table
+
+📦 Example Use Case
+Say your "Replacer Text column" column contains inconsistent names or characters, and you want to standardize them like:
+
+"Replacer Text column"	After Replacement
+Text1	-> I have changed Text1
+
+Customization
+To add or change replacement rules, modify the list_replace_values list:
+
+list_replace_values = {
+    {"OldValue1", "NewValue1"},
+    {"OldValue2", "NewValue2"}
+}
+
+Notes
+Replacements are case-sensitive by default.
+Spaces in strings (like " ") can be replaced with characters like "#".
+For case-insensitive matching or to support regular expressions, consider using custom logic or Power Query extensions.
+
