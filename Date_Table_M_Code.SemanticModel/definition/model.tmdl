@@ -6,7 +6,7 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["Date_Table"]
+annotation PBI_QueryOrder = ["Date_Table","FiscalYearStart"]
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 

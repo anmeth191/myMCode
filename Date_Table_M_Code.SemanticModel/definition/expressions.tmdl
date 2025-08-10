@@ -1,0 +1,8 @@
+/// This flags the Month where the Fiscal Year is going to start
+expression FiscalYearStart = 3 meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]
+	lineageTag: 45b482a0-3937-4cf5-8980-cb65d789c1f0
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Number
+
