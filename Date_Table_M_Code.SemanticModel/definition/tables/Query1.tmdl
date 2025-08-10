@@ -1,0 +1,57 @@
+table Query1
+	lineageTag: 06dc27e0-182b-431a-8d3f-21646b12a43a
+
+	column Date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: cbcd44b9-7f03-4286-b901-9b9eefce1c0c
+		summarizeBy: none
+		sourceColumn: Date
+
+		variation Variation
+			isDefault
+			relationship: 766f5596-a95c-4db6-8dcf-4fc027c195b1
+			defaultHierarchy: LocalDateTable_d79fb09c-faed-46a1-bd5a-05ffa2527f93.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Year Month Number'
+		dataType: int64
+		formatString: 0
+		lineageTag: 8984df83-184d-4593-964a-d84406e2309f
+		summarizeBy: sum
+		sourceColumn: Year Month Number
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Year Quarter Number'
+		dataType: int64
+		formatString: 0
+		lineageTag: c958a7dc-5f62-4607-a4c3-f2df15959fb2
+		summarizeBy: sum
+		sourceColumn: Year Quarter Number
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Query1 = m
+		mode: import
+		source = ```
+				let
+				    start_Date_calendar = #date(2007, 1, 1),
+				    end_Date_calendar = #date(2030 , 12 , 31 ), 
+				    Source = List.Dates(start_Date_calendar  , Duration.TotalDays(end_Date_calendar - start_Date_calendar) , #duration(1,0,0,0) ),
+				    transforming_to_Table = Table.FromList(Source , Splitter.SplitByNothing() , {"Date"}),
+				    #"Changed Type" = Table.TransformColumnTypes(transforming_to_Table,{{"Date", type date}}),
+				    #"Added Year Month Number" = Table.AddColumn( #"Changed Type" , "Year Month Number" ,  each Date.Year([Date]) * 12  + Date.Month([Date]) - 1 , Int64.Type),
+				    #"Added Year Quarter Number" = Table.AddColumn( #"Added Year Month Number" ,  "Year Quarter Number" , each
+				    Date.Year([Date]) * 4 + Number.RoundDown((Date.Month([Date]) - 1) / 3) + 1 - 1 , Int64.Type  )
+				in
+				    #"Added Year Quarter Number"
+				```
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

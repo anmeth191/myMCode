@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Date_Table_M_Code"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "58d0336f-cb05-4b0d-80ea-fa6cbedbec7d"
+  }
+}
