@@ -1,8 +1,27 @@
 /// This flags the Month where the Fiscal Year is going to start
-expression FiscalYearStart = 3 meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]
+expression Fiscal_Year_Month_Start = 3 meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]
 	lineageTag: 45b482a0-3937-4cf5-8980-cb65d789c1f0
+	queryGroup: 'Dates Parameters'
 
 	annotation PBI_NavigationStepName = Navigation
 
 	annotation PBI_ResultType = Number
+
+/// Manages the beggining of the Dates Range where the calendar will start
+expression 'Date Start' = #date(2007, 1, 1) meta [IsParameterQuery=true, Type="Date", IsParameterQueryRequired=true]
+	lineageTag: d7ab3f6c-ef1d-4bfd-97eb-0432c78d9a22
+	queryGroup: 'Dates Parameters'
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Date
+
+/// Manages the Final of the Dates Range where the calendar will finish
+expression 'Date End' = #date(2030, 12, 31) meta [IsParameterQuery=true, Type="Date", IsParameterQueryRequired=true]
+	lineageTag: b2ce6d7a-d1d2-4b99-b339-901bf8d6b083
+	queryGroup: 'Dates Parameters'
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Date
 

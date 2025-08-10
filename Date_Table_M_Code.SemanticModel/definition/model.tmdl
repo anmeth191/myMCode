@@ -6,7 +6,12 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["Date_Table","FiscalYearStart"]
+/// Parameters of the beggining and end of the Dates is saved in this group, same for the fiscal Year
+queryGroup 'Dates Parameters'
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation PBI_QueryOrder = ["Date_Table","Fiscal_Year_Month_Start","Date Start","Date End"]
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 

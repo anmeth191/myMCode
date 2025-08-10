@@ -247,48 +247,265 @@ table Date_Table
 		mode: import
 		source = ```
 				let
-				    start_Date_calendar = #date(2007, 1, 1),
-				    end_Date_calendar = #date(2030 , 12 , 31 ), 
-				    Generating_Dates = List.Dates(start_Date_calendar  , Duration.TotalDays(end_Date_calendar - start_Date_calendar) + 1 , #duration(1,0,0,0) ),
-				    transforming_to_Table = Table.FromList(Generating_Dates , Splitter.SplitByNothing() , {"Date"}),
-				    #"Changed Type" = Table.TransformColumnTypes(transforming_to_Table,{{"Date", type date}}),
-				    #"Added Year Month Number" = Table.AddColumn( #"Changed Type" , "Year Month Number" ,  each Date.Year([Date]) * 12  + Date.Month([Date]) - 1 , Int64.Type),
-				    #"Added Year Quarter Number" = Table.AddColumn( #"Added Year Month Number" ,  "Year Quarter Number" , each
-				    Date.Year([Date]) * 4 + Number.RoundDown((Date.Month([Date]) - 1) / 3) + 1 - 1 , Int64.Type  ),
-				    #"Year Month Key" = Table.AddColumn(#"Added Year Quarter Number", "Year Month Key", each Text.AfterDelimiter(Text.From([Date]) , "/" , 1) &
-				  "0" &Text.BeforeDelimiter(Text.From([Date]), "/")),
-				    #"Added Year Quarter" = Table.AddColumn( #"Year Month Key" , "Calendar Year Quarter" , each 
-				let 
-				 Quarter = "Q"&Text.From(Date.QuarterOfYear([Date])),
-				 Year = Text.From(Date.Year([Date])),
-				 result = Quarter&"-"&Year
-				 in
-				 result
-				, type text),
-				    #"Added Year" = Table.AddColumn( #"Added Year Quarter" ,  "Calendar Year" , each Date.Year([Date]) , Int64.Type ),
-				    #"Added Quarter" = Table.AddColumn( #"Added Year" , "Calendar Quarter" , each  "Q"&Text.From(Date.QuarterOfYear([Date])) , type text ),
-				    #"Added Month Number" = Table.AddColumn( #"Added Quarter" , "Calendar Month Number" , each Date.Month([Date]) ,  Int64.Type
-				),
-				    #"Added Month Name" = Table.AddColumn( #"Added Month Number" , "Calendar Month Name" , each Text.Range(Text.Upper(Date.MonthName([Date])) , 0 , 3) , type text),
-				    #"Added Year Month" = Table.AddColumn( #"Added Month Name" , "Calendar Year Month" , each [Calendar Month Name] &" "&Text.From([Calendar Year]) , type text),
-				    #"Added Week of Month Number" = Table.AddColumn( #"Added Year Month" , "Week Of Calendar Month Number" , each Date.WeekOfMonth([Date]) ,  Int64.Type),
-				    #"Added Week of Year Number" = Table.AddColumn(  #"Added Week of Month Number" , "Week Of Calendar Year Number" , each Date.WeekOfYear([Date]) ,  Int64.Type),
-				    #"Added Day of the Week Number" = Table.AddColumn( #"Added Week of Year Number" , "Day Of the Week Number" , each Date.DayOfWeek([Date] , 0 ) + 1 , Int64.Type ),
-				    #"Added Day Of the week Name" = Table.AddColumn(#"Added Day of the Week Number" , "Day Of the Week Name" , each Text.Range(Text.Upper(Date.DayOfWeekName([Date])) , 0 , 3) , type text),
-				    #"Added Date of the Year Number" = Table.AddColumn( #"Added Day Of the week Name" , "Day of Calendar Year Number" , each Date.DayOfYear([Date]) ,  Int64.Type ),
-				    #"Added Month in Quarter Number" = Table.AddColumn( #"Added Date of the Year Number" , "Calendar Month in Quarter Number" , each Number.Mod( Date.Month([Date]) - 1 , 3 ) + 1 ,  Int64.Type ),
-				    #"Changed Type1" = Table.TransformColumnTypes(#"Added Month in Quarter Number",{{"Year Month Key", Int64.Type}}),
-				    #"Added Fiscal Year Number" = Table.AddColumn( #"Changed Type1" , "Fiscal Year Number"  , each if [Calendar Month Number] >= FiscalYearStart then [Calendar Year]  + 1 else [Calendar Year] , type number),
-				    #"Added Fiscal Month Number" = Table.AddColumn( #"Added Fiscal Year Number" , "Fiscal Month Number" , each Number.Mod(([Calendar Month Number] - FiscalYearStart + 12 ) , 12 ) + 1 , Int64.Type ),
-				    #"Added Fiscal Quarter Number" = Table.AddColumn( #"Added Fiscal Month Number" , "Fiscal Quarter Number" , each Number.IntegerDivide([Fiscal Month Number] - 1 , 3 ) + 1 , Int64.Type ),
-				    #"Added Fiscal Quarter" = Table.AddColumn( #"Added Fiscal Quarter Number" , "Fiscal Quarter", each "FQ"& Text.From([Fiscal Quarter Number]) , type text),
+				    //Beginning of the Date Table, First Date Avalilable, this uses Parameter Date Start
+				    start_Date_calendar = #"Date Start",
+				   
+				   //End of the Date Table, Last Date Avalilable, this uses Parameter Date End
+				    end_Date_calendar = #"Date End",
+				  
+				   //Calculate the total days between both dates ,  Start and End dates 
+				    total_days_calendar =  Duration.TotalDays(end_Date_calendar - start_Date_calendar) + 1, 
+				   
+				  //Use List.Dates function to generate the Continuos Dates between the two Dates and providing the total Days between both Dates 
+				    Generating_Dates = List.Dates( start_Date_calendar , total_days_calendar , #duration(1, 0, 0, 0)),
+				    
+				    //Transforming the List from List.Dates into a Table , it will return one column
+				    transforming_to_Table = Table.FromList(Generating_Dates, Splitter.SplitByNothing(), {"Date"}),
+				    
+				    //Changing the Data type to Date 
+				    #"Changed Type" = Table.TransformColumnTypes(transforming_to_Table, {{"Date", type date}}),
+				  
+				  /*Added Year Month Number Column, Continuous Month Index (0-based)
+				    What: one integer per Year–Month (global; never resets).
+				    Formula: Year*12 + Month - 1  (subtract 1 so months are 0–11).
+				    Why in DAX Patterns: stable sort key for Year–Month; simple offsets (PM -1, PQ -3, PY -12);
+				    cleaner month-grain joins and rolling windows; avoids locale-dependent text keys.
+				    Example: 2007-03 → 2007*12 + 3 - 1 = 24086. */
+				    #"Added Year Month Number" = Table.AddColumn(
+				        #"Changed Type", "Year Month Number", each Date.Year([Date]) * 12 + Date.Month([Date]) - 1, Int64.Type
+				    ),
+				   
+				   /*
+				   Added Year Quarter Number, Continuous Quarter Index (0-based)
+				   What: one integer per Year–Quarter (global; never resets).
+				     to calculate this use the Year Month Number previously Calculated and divided it by 3 , the value needs to be rounded down
+				     to the closest Integer value   
+				   */
+				    #"Added Year Quarter Number" = Table.AddColumn(
+				        #"Added Year Month Number",
+				        "Year Quarter Number",
+				        each Number.RoundDown([Year Month Number] / 3),
+				        Int64.Type
+				    ),
+				
+				    //Month Key level is a combination of the Year Value and the Month Number.
+				    #"Year Month Key" = Table.AddColumn(
+				        #"Added Year Quarter Number",
+				        "Year Month Key",
+				        each Text.AfterDelimiter(Text.From([Date]), "/", 1) & "0" & Text.BeforeDelimiter(Text.From([Date]), "/")
+				    ),
+				    //Combination of the Calendar Quarter Number and the Year, the Quarter has been concatenadted with letter Q 
+				    #"Added Year Quarter" = Table.AddColumn(
+				        #"Year Month Key",
+				        "Calendar Year Quarter",
+				        each
+				            let
+				                Quarter = "Q" & Text.From(Date.QuarterOfYear([Date])),
+				                Year = Text.From(Date.Year([Date])),
+				                result = Quarter & "-" & Year
+				            in
+				                result,
+				        type text
+				    ),
+				
+				    //Getting the Calendar Year Number Value 
+				    #"Added Year" = Table.AddColumn(#"Added Year Quarter", "Calendar Year", each Date.Year([Date]), Int64.Type),
+				    
+				    //Getting the calendar Quarter and concatenated with Letter Q 
+				    #"Added Quarter" = Table.AddColumn(
+				        #"Added Year", "Calendar Quarter", each "Q" & Text.From(Date.QuarterOfYear([Date])), type text
+				    ),
+				
+				    //Getting the Month Number Value
+				    #"Added Month Number" = Table.AddColumn(
+				        #"Added Quarter", "Calendar Month Number", each Date.Month([Date]), Int64.Type
+				    ),
+				
+				    //Getting the Full Month Name and get the furst 3 values of the Text Uppercased 
+				    #"Added Month Name" = Table.AddColumn(
+				        #"Added Month Number",
+				        "Calendar Month Name",
+				        each Text.Range(Text.Upper(Date.MonthName([Date])), 0, 3),
+				        type text
+				    ),
+				
+				    //Combining the Calendar Month Name and the Text value from the Year Column
+				    #"Added Year Month" = Table.AddColumn(
+				        #"Added Month Name",
+				        "Calendar Year Month",
+				        each [Calendar Month Name] & " " & Text.From([Calendar Year]),
+				        type text
+				    ),
+				    //Added the Week number of the Calendar Month from 1 - 4
+				    #"Added Week of Month Number" = Table.AddColumn(
+				        #"Added Year Month", "Week Of Calendar Month Number", each Date.WeekOfMonth([Date]), Int64.Type
+				    ),
+				
+				    //Added the week number of the whole calendar year from 1 - 52 
+				    #"Added Week of Year Number" = Table.AddColumn(
+				        #"Added Week of Month Number", "Week Of Calendar Year Number", each Date.WeekOfYear([Date]), Int64.Type
+				    ),
+				
+				    //Added the day number of the week the +1 ensures that the week starts on sunday and ends saturday
+				    #"Added Day of the Week Number" = Table.AddColumn(
+				        #"Added Week of Year Number", "Day Of the Week Number", each Date.DayOfWeek([Date], 0) + 1, Int64.Type
+				    ),
+				
+				    //Added the name of the Day of the current week
+				    #"Added Day Of the week Name" = Table.AddColumn(
+				        #"Added Day of the Week Number",
+				        "Day Of the Week Name",
+				        each Text.Range(Text.Upper(Date.DayOfWeekName([Date])), 0, 3),
+				        type text
+				    ),
+				
+				    //Added the Day value of the calendar year number from 1 - 365
+				    #"Added Date of the Year Number" = Table.AddColumn(
+				        #"Added Day Of the week Name", "Day of Calendar Year Number", each Date.DayOfYear([Date]), Int64.Type
+				    ),
+				
+				  /* Calendar Month-in-Quarter (1–3) using modulo 3
+				   What: position of the month inside its quarter (1, 2, or 3).
+				   How: Number.Mod(Date.Month([Date]) - 1, 3) + 1.
+				*/
+				    #"Added Month in Quarter Number" = Table.AddColumn(
+				        #"Added Date of the Year Number",
+				        "Calendar Month in Quarter Number",
+				        /*
+				        Example how it works to get the Quarter:
+				     - June (6): 6-1=5; 5 mod 3 = 2; 2+1 = 3 → 3rd month of the quarter
+				     - July (7): 7-1=6; 6 mod 3 = 0; 0+1 = 1 → 1st month of the quarter */
+				        each Number.Mod(Date.Month([Date]) - 1, 3) + 1,
+				        Int64.Type
+				    ),
+				    //Changing Value of YearMoint Key column from text to Number
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Added Month in Quarter Number", {{"Year Month Key", Int64.Type}}),
+				    
+				    //Adding Fiscal Year Number using parameter Fiscal Year Month Start, uses a condition to add a year of the date is greater than the start date
+				    #"Added Fiscal Year Number" = Table.AddColumn(
+				        #"Changed Type1",
+				        "Fiscal Year Number",
+				        each if [Calendar Month Number] >= Fiscal_Year_Month_Start then [Calendar Year] + 1 else [Calendar Year],
+				        type number
+				    ),
+				    //Added Fiscal Month Number Using mod function
+				    #"Added Fiscal Month Number" = Table.AddColumn(
+				        #"Added Fiscal Year Number",
+				        "Fiscal Month Number",
+				        /*See examples how it works:
+				        Assume you are in Month May which is Number 5 and Month start is 4 which is April: 
+				         -> 5  - 4 = 1 
+				         -> 1 + 12 (12 Prevents negative values when the months are less than the start) = 13 
+				         -> 13 mod 12 (because 12 months in one year) = 1 
+				         -> 1 + 1 = 2 May is the 2 month of FY
+				         
+				         Assume month is October which is number 10 
+				
+				         ->10 - 4 = 6
+				         -> 6 + 12 (12 Prevents negative values when the months are less than the start) = 18 
+				         -> 18 mod 12 (because 12 months in one year) = 6 
+				         -> 6 + 1 then 7 October is the 7 month of the FY 
+				        */
+				        each Number.Mod(([Calendar Month Number] - Fiscal_Year_Month_Start + 12), 12) + 1,
+				        Int64.Type
+				    ),
+				
+				    //Added Fiscal Quarter Number using Number.IntegerDivide to Round down to the nearest Integer but Number.Rounddown can be used
+				    #"Added Fiscal Quarter Number" = Table.AddColumn(
+				        #"Added Fiscal Month Number",
+				        "Fiscal Quarter Number",
+				        /*Examples how it works:
+				        Assume Fiscal Month is 7 
+				        7 - 1 = 6 
+				        6 / 3 =  2 
+				        roundown to nearest integer = 2 
+				        2 + 1 = 3 
+				        so Month Number 7 is in the 3 Fiscal Quarter of the Year
+				        
+				
+				        Assume Fiscal Month is 2 
+				        2 - 1 = 1 
+				        1 / 3 = 0.33 
+				        roundown to the nearest integer = 0 
+				        0 + 1 = 1 
+				       So Month Number 2 is in 1 Fiscal Quarter of the Year
+				        */
+				        each Number.IntegerDivide([Fiscal Month Number] - 1, 3) + 1,
+				        Int64.Type
+				    ),
+				
+				    //Added Fiscal Quarter combining FQ with Text from Fiscal Quarter Number
+				    #"Added Fiscal Quarter" = Table.AddColumn(
+				        #"Added Fiscal Quarter Number", "Fiscal Quarter", each "FQ" & Text.From([Fiscal Quarter Number]), type text
+				    ),
+				
+				    //Added Fiscal Period which is the same as the Fiscal Month Number (Not always is the same)
 				    #"Added Fiscal Period" = Table.DuplicateColumn(#"Added Fiscal Quarter", "Fiscal Month Number", "Fiscal Period"),
-				    #"Added Fiscal Month Name" = Table.DuplicateColumn(#"Added Fiscal Period", "Calendar Month Name", "Fiscal Month Name"),
-				    #"Added Fiscal Year Quarter" = Table.AddColumn(#"Added Fiscal Month Name", "Fiscal Year Quarter", each Text.Combine({[Fiscal Quarter], Text.From([Fiscal Year Number], "en-US")}, "-"), type text),
-				    #"Added Fiscal Year" = Table.AddColumn(#"Added Fiscal Year Quarter", "Fiscal Year", each "FY " & Text.From([Fiscal Year Number]), type text),
-				    #"Added Fiscal Month In Quarter Number" = Table.AddColumn(#"Added Fiscal Year" , "Fiscal Month In Quarter Number" , each Number.Mod([Fiscal Month Number] - 1  , 3  ) +  1  , Int64.Type),
-				    #"Added Fiscal Year Quarter Number" = Table.AddColumn( #"Added Fiscal Month In Quarter Number" , "Fiscal Year Quarter Number" , each [Fiscal Year Number] * 4 + [Fiscal Quarter Number] - 1 , Int64.Type ),
-				    #"Added Fiscal Year Month Number" = Table.AddColumn( #"Added Fiscal Year Quarter Number" , "Fiscal Year Month Number" , each [Fiscal Year Number] * 12 + [Fiscal Month Number] - 1 , Int64.Type )
+				    #"Added Fiscal Month Name" = Table.DuplicateColumn(
+				        #"Added Fiscal Period", "Calendar Month Name", "Fiscal Month Name"
+				    ),
+				
+				    //Added combination of Fiscal Quarter and Year
+				    #"Added Fiscal Year Quarter" = Table.AddColumn(
+				        #"Added Fiscal Month Name",
+				        "Fiscal Year Quarter",
+				        each Text.Combine({[Fiscal Quarter], Text.From([Fiscal Year Number], "en-US")}, "-"),
+				        type text
+				    ),
+				    //Added Fiscal Year Number combined with FY
+				    #"Added Fiscal Year" = Table.AddColumn(
+				        #"Added Fiscal Year Quarter", "Fiscal Year", each "FY " & Text.From([Fiscal Year Number]), type text
+				    ),
+				
+				    //Added The Fiscal Month Number in the Current Quarter using previous pattern with Mod
+				    #"Added Fiscal Month In Quarter Number" = Table.AddColumn(
+				        #"Added Fiscal Year",
+				        "Fiscal Month In Quarter Number",
+				        /*Example how it works , assume the month is 8 
+				        8 - 1 = 7 
+				        7 mod  3 = 1 
+				        1 + 1 = 2  
+				        so Month 8 is the second month in the quarter
+				
+				        Assume Month is 10 
+				        10 - 1 = 9 
+				        9 mod 3 = 0 
+				        0 + 1 = 1 
+				        Month 9 is the first Month in the quarter
+				        */
+				        each Number.Mod([Fiscal Month Number] - 1, 3) + 1,
+				        Int64.Type
+				    ),
+				
+				    //Added Fiscal Year Quarter Number using the following Calculation
+				    /* Fiscal Quarter Index (0-based)
+				       What: one global integer per Fiscal Year–Quarter (never resets).
+				       Formula: FiscalYear*4 + FiscalQuarter - 1*/
+				    #"Added Fiscal Year Quarter Number" = Table.AddColumn(
+				        #"Added Fiscal Month In Quarter Number",
+				        "Fiscal Year Quarter Number",
+				        /*See example how it works:
+				        Assume Fiscal Year number is 2020 and Fiscal Quarter number is 2 
+				        2020 * 4 = 8080 
+				        2 - 1 = 1 
+				        8080 + 1 = 8081
+				        so the Year Quarter Numeric Value is 8081 
+				        This is used as a continuos Integer number it does not reset every jan and is to
+				        identify the current year and quarter in a numeric value  
+				        */
+				        each [Fiscal Year Number] * 4 + [Fiscal Quarter Number] - 1,
+				        Int64.Type
+				    ),
+				
+				    /*The same as before One global Integer for the Year Month Number level
+				    This same calculation is explained in detail in the Year Month Number step and is the same code
+				    */
+				    #"Added Fiscal Year Month Number" = Table.AddColumn(
+				        #"Added Fiscal Year Quarter Number",
+				        "Fiscal Year Month Number",
+				        each [Fiscal Year Number] * 12 + [Fiscal Month Number] - 1,
+				        Int64.Type
+				    )
 				in
 				    #"Added Fiscal Year Month Number"
 				```
