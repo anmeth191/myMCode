@@ -6,7 +6,7 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["Query1"]
+annotation PBI_QueryOrder = ["Date_Table"]
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 
@@ -14,7 +14,7 @@ annotation PBIDesktopVersion = 2.145.1602.0 (25.07)+10647c9fa319b5e39936cdb21328
 
 annotation PBI_ProTooling = ["DevMode"]
 
-ref table Query1
+ref table Date_Table
 ref table DateTableTemplate_af3c2795-9f4e-485d-b22f-f0ca7135be9c
 ref table LocalDateTable_d79fb09c-faed-46a1-bd5a-05ffa2527f93
 
